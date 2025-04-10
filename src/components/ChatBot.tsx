@@ -8,34 +8,146 @@ import { Flight } from "@/types/flight";
 import { processUserMessage } from "@/lib/nlpService";
 import { searchFlights } from "@/lib/flightService";
 import { useToast } from "@/hooks/use-toast";
+import { SaveIcon, RefreshCw, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export interface Message {
   id: string;
   text: string;
   role: MessageRole;
+  timestamp: number;
 }
 
 const INITIAL_MESSAGE: Message = {
   id: "welcome",
   text: "Hello! I'm your FlyIndia assistant. I can help you search for flights, check prices, and book tickets. How can I assist you today?",
   role: "bot",
+  timestamp: Date.now(),
 };
 
+const STORAGE_KEY = "flyindia_chat_history";
+
 const ChatBot = () => {
-  const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [flights, setFlights] = useState<Flight[]>([]);
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
   const [passengerName, setPassengerName] = useState<string>("");
   const [showFlightResults, setShowFlightResults] = useState(false);
   const [showBookingConfirmation, setShowBookingConfirmation] = useState(false);
+  const [conversations, setConversations] = useState<{id: string, title: string, timestamp: number}[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Load conversations from localStorage
+  useEffect(() => {
+    const savedConversations = localStorage.getItem('flyindia_conversations');
+    if (savedConversations) {
+      setConversations(JSON.parse(savedConversations));
+    }
+    
+    // Start a new conversation
+    startNewConversation();
+  }, []);
+
+  // Load messages for current conversation
+  useEffect(() => {
+    if (currentConversationId) {
+      const savedMessages = localStorage.getItem(`${STORAGE_KEY}_${currentConversationId}`);
+      if (savedMessages) {
+        setMessages(JSON.parse(savedMessages));
+      } else {
+        setMessages([INITIAL_MESSAGE]);
+      }
+    }
+  }, [currentConversationId]);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (currentConversationId && messages.length > 0) {
+      localStorage.setItem(`${STORAGE_KEY}_${currentConversationId}`, JSON.stringify(messages));
+      
+      // Update conversation title based on first user message
+      const userMessages = messages.filter(m => m.role === 'user');
+      if (userMessages.length > 0) {
+        const title = userMessages[0].text.substring(0, 30) + (userMessages[0].text.length > 30 ? '...' : '');
+        updateConversationTitle(currentConversationId, title);
+      }
+    }
+  }, [messages, currentConversationId]);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, flights, showBookingConfirmation]);
+
+  const startNewConversation = () => {
+    const id = Date.now().toString();
+    const newConvo = {
+      id,
+      title: "New conversation",
+      timestamp: Date.now()
+    };
+    
+    setConversations(prev => {
+      const updated = [...prev, newConvo];
+      localStorage.setItem('flyindia_conversations', JSON.stringify(updated));
+      return updated;
+    });
+    
+    setCurrentConversationId(id);
+    setMessages([INITIAL_MESSAGE]);
+    setFlights([]);
+    setSelectedFlight(null);
+    setPassengerName("");
+    setShowFlightResults(false);
+    setShowBookingConfirmation(false);
+  };
+
+  const loadConversation = (id: string) => {
+    setCurrentConversationId(id);
+    setFlights([]);
+    setSelectedFlight(null);
+    setPassengerName("");
+    setShowFlightResults(false);
+    setShowBookingConfirmation(false);
+  };
+
+  const updateConversationTitle = (id: string, title: string) => {
+    setConversations(prev => {
+      const updated = prev.map(convo => 
+        convo.id === id ? { ...convo, title } : convo
+      );
+      localStorage.setItem('flyindia_conversations', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const deleteConversation = (id: string) => {
+    // Remove from localStorage
+    localStorage.removeItem(`${STORAGE_KEY}_${id}`);
+    
+    // Update conversations list
+    setConversations(prev => {
+      const updated = prev.filter(convo => convo.id !== id);
+      localStorage.setItem('flyindia_conversations', JSON.stringify(updated));
+      return updated;
+    });
+    
+    // If current conversation was deleted, start a new one
+    if (id === currentConversationId) {
+      if (conversations.length > 1) {
+        // Load the most recent conversation
+        const mostRecent = conversations
+          .filter(convo => convo.id !== id)
+          .sort((a, b) => b.timestamp - a.timestamp)[0];
+        loadConversation(mostRecent.id);
+      } else {
+        startNewConversation();
+      }
+    }
+  };
 
   const handleSendMessage = async (text: string) => {
     // Add user message
@@ -43,6 +155,7 @@ const ChatBot = () => {
       id: Date.now().toString(),
       text,
       role: "user",
+      timestamp: Date.now(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -70,6 +183,7 @@ const ChatBot = () => {
             ? `I found ${searchResults.length} flights from ${response.entities.origin} to ${response.entities.destination}. Here are the results:` 
             : `I couldn't find any flights from ${response.entities.origin} to ${response.entities.destination} on the selected date. Would you like to try different dates or destinations?`,
           role: "bot",
+          timestamp: Date.now(),
         };
         
         setMessages((prev) => [...prev, botResponse]);
@@ -84,6 +198,7 @@ const ChatBot = () => {
             id: (Date.now() + 1).toString(),
             text: `Great! I've prepared a booking for ${response.entities.name} on the selected flight. Please review the details and confirm your booking.`,
             role: "bot",
+            timestamp: Date.now(),
           };
           
           setMessages((prev) => [...prev, botResponse]);
@@ -92,6 +207,7 @@ const ChatBot = () => {
             id: (Date.now() + 1).toString(),
             text: `I'll need you to select a flight first before I can book it for ${response.entities.name}. Would you like to search for flights?`,
             role: "bot",
+            timestamp: Date.now(),
           };
           
           setMessages((prev) => [...prev, botResponse]);
@@ -103,6 +219,7 @@ const ChatBot = () => {
           id: (Date.now() + 1).toString(),
           text: response.reply,
           role: "bot",
+          timestamp: Date.now(),
         };
         
         setMessages((prev) => [...prev, botResponse]);
@@ -112,6 +229,7 @@ const ChatBot = () => {
         id: (Date.now() + 1).toString(),
         text: "I'm sorry, I encountered an error processing your request. Please try again.",
         role: "bot",
+        timestamp: Date.now(),
       };
       
       setMessages((prev) => [...prev, errorMessage]);
@@ -127,8 +245,9 @@ const ChatBot = () => {
     
     const botResponse: Message = {
       id: Date.now().toString(),
-      text: `You've selected ${flight.airline} flight ${flight.flightNumber} from ${flight.origin} to ${flight.destination} for ₹${flight.price.toLocaleString('en-IN')}. Would you like to proceed with booking? Please provide the passenger name.`,
+      text: `You've selected ${flight.airline} flight ${flight.flightNumber} from ${flight.origin} to ${flight.destination} for ₹${flight.price.toLocaleString('en-IN')}. This ${flight.class} class flight includes ${flight.baggage.checkin} checked baggage and ${flight.amenities.join(", ")}. Would you like to proceed with booking? Please provide the passenger name.`,
       role: "bot",
+      timestamp: Date.now(),
     };
     
     setMessages((prev) => [...prev, botResponse]);
@@ -138,17 +257,20 @@ const ChatBot = () => {
     // In a real app, this would call an API to create a booking
     setShowBookingConfirmation(false);
     
+    const bookingReference = Math.random().toString(36).substring(2, 10).toUpperCase();
+    
     const botResponse: Message = {
       id: Date.now().toString(),
-      text: `Congratulations! Your flight from ${selectedFlight?.origin} to ${selectedFlight?.destination} has been booked successfully. A confirmation email has been sent to your registered email address. Your booking reference is ${Math.random().toString(36).substring(2, 10).toUpperCase()}.`,
+      text: `Congratulations! Your ${selectedFlight?.class} class flight from ${selectedFlight?.origin} to ${selectedFlight?.destination} has been booked successfully. A confirmation email has been sent to your registered email address. Your booking reference is ${bookingReference}. You're entitled to ${selectedFlight?.baggage.cabin} cabin baggage and ${selectedFlight?.baggage.checkin} checked baggage.`,
       role: "bot",
+      timestamp: Date.now(),
     };
     
     setMessages((prev) => [...prev, botResponse]);
     
     toast({
       title: "Booking Confirmed!",
-      description: "Your flight has been booked successfully.",
+      description: `Booking reference: ${bookingReference}`,
     });
     
     // Reset the booking flow
@@ -163,6 +285,7 @@ const ChatBot = () => {
       id: Date.now().toString(),
       text: "I've cancelled this booking. Would you like to search for different flights or make any other changes?",
       role: "bot",
+      timestamp: Date.now(),
     };
     
     setMessages((prev) => [...prev, botResponse]);
@@ -170,6 +293,36 @@ const ChatBot = () => {
 
   return (
     <div className="flex flex-col h-full max-w-full">
+      <div className="py-2 px-4 border-b flex flex-wrap gap-2 bg-white">
+        <Button 
+          onClick={startNewConversation}
+          size="sm" 
+          variant="outline" 
+          className="text-flyindia-primary"
+        >
+          New Chat
+        </Button>
+        
+        {conversations.slice().sort((a, b) => b.timestamp - a.timestamp).map(convo => (
+          <div 
+            key={convo.id} 
+            className={`flex items-center ${currentConversationId === convo.id ? 'bg-flyindia-light text-flyindia-primary font-medium' : 'bg-gray-100'} px-3 py-1.5 rounded-full text-sm cursor-pointer group hover:bg-flyindia-light transition-colors`}
+            onClick={() => loadConversation(convo.id)}
+          >
+            {convo.title}
+            {currentConversationId !== convo.id && (
+              <Trash2 
+                className="h-4 w-4 ml-2 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-500" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteConversation(convo.id);
+                }}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="space-y-4">
           {messages.map((message) => (
@@ -177,6 +330,7 @@ const ChatBot = () => {
               key={message.id}
               message={message.text}
               role={message.role}
+              timestamp={new Date(message.timestamp).toLocaleTimeString()}
             />
           ))}
           

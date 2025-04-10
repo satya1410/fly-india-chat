@@ -7,9 +7,10 @@ export interface ChatMessageProps {
   message: string;
   role: MessageRole;
   isLoading?: boolean;
+  timestamp?: string;
 }
 
-const ChatMessage = ({ message, role, isLoading = false }: ChatMessageProps) => {
+const ChatMessage = ({ message, role, isLoading = false, timestamp }: ChatMessageProps) => {
   return (
     <div
       className={cn(
@@ -19,7 +20,7 @@ const ChatMessage = ({ message, role, isLoading = false }: ChatMessageProps) => 
     >
       <div
         className={cn(
-          "chat-bubble",
+          "chat-bubble relative",
           role === "user" ? "chat-bubble-user" : "chat-bubble-bot"
         )}
       >
@@ -30,7 +31,14 @@ const ChatMessage = ({ message, role, isLoading = false }: ChatMessageProps) => 
             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
           </div>
         ) : (
-          <div className="whitespace-pre-wrap">{message}</div>
+          <>
+            <div className="whitespace-pre-wrap">{message}</div>
+            {timestamp && (
+              <div className="text-xs text-gray-500 mt-1 text-right">
+                {timestamp}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

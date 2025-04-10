@@ -10,4 +10,18 @@ export interface Flight {
   duration: number; // in minutes
   price: number;
   available: boolean;
+  aircraft: string;
+  seatAvailability: number;
+  class: "Economy" | "Premium Economy" | "Business" | "First";
+  amenities: string[];
+  layovers?: {
+    airport: string;
+    duration: number; // in minutes
+  }[];
+  logo?: string;
+  refundable: boolean;
+  baggage: {
+    cabin: string;
+    checkin: string;
+  };
 }
