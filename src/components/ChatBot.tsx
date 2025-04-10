@@ -8,6 +8,8 @@ import { Flight } from "@/types/flight";
 import { processUserMessage } from "@/lib/nlpService";
 import { searchFlights } from "@/lib/flightService";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { SaveIcon, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -39,6 +41,8 @@ const ChatBot = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Load conversations from localStorage
   useEffect(() => {
@@ -189,9 +193,19 @@ const ChatBot = () => {
         setMessages((prev) => [...prev, botResponse]);
       } 
       else if (response.intent === "book_flight" && response.entities.name) {
-        setPassengerName(response.entities.name);
-        
-        if (selectedFlight) {
+        // Check if user is logged in
+        if (!user) {
+          const loginPrompt: Message = {
+            id: Date.now().toString(),
+            text: "You need to be logged in to book tickets. Would you like to go to the login page now?",
+            role: "bot",
+            timestamp: Date.now(),
+          };
+          
+          setMessages((prev) => [...prev, loginPrompt]);
+        } 
+        else if (selectedFlight) {
+          setPassengerName(response.entities.name);
           setShowBookingConfirmation(true);
           
           const botResponse: Message = {
@@ -212,7 +226,15 @@ const ChatBot = () => {
           
           setMessages((prev) => [...prev, botResponse]);
         }
-      } 
+      }
+      // Add login intent handler
+      else if (response.intent === "login" || 
+               text.toLowerCase().includes("login") || 
+               text.toLowerCase().includes("log in") ||
+               text.toLowerCase().includes("sign in")) {
+        // Redirect to login page
+        navigate('/login');
+      }
       else {
         // General responses
         const botResponse: Message = {
@@ -240,6 +262,20 @@ const ChatBot = () => {
   };
 
   const handleSelectFlight = (flight: Flight) => {
+    // Check if user is logged in before allowing selection
+    if (!user) {
+      const loginPrompt: Message = {
+        id: Date.now().toString(),
+        text: "You need to be logged in to proceed with booking. Would you like to go to the login page now?",
+        role: "bot",
+        timestamp: Date.now(),
+      };
+      
+      setMessages((prev) => [...prev, loginPrompt]);
+      setShowFlightResults(false);
+      return;
+    }
+    
     setSelectedFlight(flight);
     setShowFlightResults(false);
     
@@ -291,6 +327,10 @@ const ChatBot = () => {
     setMessages((prev) => [...prev, botResponse]);
   };
 
+  const handleLoginRedirect = () => {
+    navigate('/login');
+  };
+
   return (
     <div className="flex flex-col h-full max-w-full">
       <div className="py-2 px-4 border-b flex flex-wrap gap-2 bg-white">
@@ -324,6 +364,22 @@ const ChatBot = () => {
       </div>
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {!user && (
+          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4">
+            <p className="text-yellow-700 mb-2 font-medium">Login Required for Booking</p>
+            <p className="text-yellow-600 text-sm mb-3">
+              You need to be logged in to book tickets. You can search for flights, but booking requires an account.
+            </p>
+            <Button 
+              onClick={handleLoginRedirect} 
+              className="bg-yellow-600 hover:bg-yellow-700 text-white"
+              size="sm"
+            >
+              Sign In Now
+            </Button>
+          </div>
+        )}
+        
         <div className="space-y-4">
           {messages.map((message) => (
             <ChatMessage
