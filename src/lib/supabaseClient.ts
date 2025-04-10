@@ -11,8 +11,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables. Check that they are properly set in your Supabase project settings.');
 }
 
-// Create the Supabase client with explicit empty string fallbacks to prevent the "supabaseUrl is required" error
+// Create a dummy client if environment variables are missing
+// This allows the app to at least load in development without crashing
 export const supabase = createClient(
-  supabaseUrl || '',
-  supabaseAnonKey || ''
+  supabaseUrl || 'https://placeholder-project.supabase.co',
+  supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyLXByb2plY3QiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTYxNjQyMjY0MCwiZXhwIjoxOTMyMDg1ODQwfQ.placeholder'
 );
