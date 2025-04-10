@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,12 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				flyindia: {
+					primary: '#1a73e8',
+					secondary: '#76a9ff',
+					accent: '#f0f7ff',
+					light: '#e8f0fe',
 				}
 			},
 			borderRadius: {
@@ -84,11 +91,26 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'typing': {
+					from: { width: '0' },
+					to: { width: '100%' }
+				},
+				'blink': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0' }
+				},
+				'bounce-gentle': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-4px)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'typing': 'typing 1s steps(30, end)',
+				'blink': 'blink 1s infinite',
+				'bounce-gentle': 'bounce-gentle 1.5s infinite'
 			}
 		}
 	},
