@@ -1,5 +1,6 @@
 
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export type MessageRole = "user" | "bot";
 
@@ -8,9 +9,10 @@ export interface ChatMessageProps {
   role: MessageRole;
   isLoading?: boolean;
   timestamp?: string;
+  userPhotoUrl?: string;
 }
 
-const ChatMessage = ({ message, role, isLoading = false, timestamp }: ChatMessageProps) => {
+const ChatMessage = ({ message, role, isLoading = false, timestamp, userPhotoUrl }: ChatMessageProps) => {
   return (
     <div
       className={cn(
@@ -18,9 +20,16 @@ const ChatMessage = ({ message, role, isLoading = false, timestamp }: ChatMessag
         role === "user" ? "justify-end" : "justify-start"
       )}
     >
+      {role === "bot" && (
+        <Avatar className="h-8 w-8 mr-2">
+          <AvatarFallback className="bg-flyindia-primary text-white">FI</AvatarFallback>
+          <AvatarImage src="/logo.png" alt="FlyIndia" />
+        </Avatar>
+      )}
+      
       <div
         className={cn(
-          "chat-bubble relative",
+          "chat-bubble relative max-w-[80%]",
           role === "user" ? "chat-bubble-user" : "chat-bubble-bot"
         )}
       >
@@ -41,6 +50,15 @@ const ChatMessage = ({ message, role, isLoading = false, timestamp }: ChatMessag
           </>
         )}
       </div>
+      
+      {role === "user" && (
+        <Avatar className="h-8 w-8 ml-2">
+          <AvatarFallback className="bg-flyindia-secondary text-white">
+            {userPhotoUrl ? "" : "U"}
+          </AvatarFallback>
+          {userPhotoUrl && <AvatarImage src={userPhotoUrl} alt="User" />}
+        </Avatar>
+      )}
     </div>
   );
 };
